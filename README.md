@@ -40,7 +40,7 @@ The script will walk through each step with printed output, then drop into an in
 | 2 | Messages are split into train/test sets, then converted to TF-IDF vectors |
 | 3 | A Logistic Regression model is trained on the training set |
 | 4 | The model is evaluated on the unseen test set |
-| 5 | The top spam-indicator words are printed with a visual bar chart |
+| 5 | The top 15 words by Logistic Regression coefficient are printed with a visual bar chart |
 | 6 | Example messages are classified, then you can enter your own |
 
 ### Why TF-IDF?
@@ -50,6 +50,21 @@ TF-IDF (Term Frequency–Inverse Document Frequency) weights words by how often 
 ### Why Logistic Regression?
 
 Fast, interpretable, and effective for text classification. The model's coefficients directly reveal which words push a message toward spam or ham.
+
+## What's Next
+
+A natural next experiment: add **bigrams** to the vectorizer and see if accuracy improves.
+
+```python
+vectorizer = TfidfVectorizer(
+    stop_words="english",
+    lowercase=True,
+    max_features=5000,
+    ngram_range=(1, 2),   # include two-word phrases like "click here", "win prize"
+)
+```
+
+Bigrams capture phrases that single words miss — "not bad" means something very different from "bad" alone.
 
 ## Dataset
 
