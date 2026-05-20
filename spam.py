@@ -2,8 +2,7 @@
 Spam Filter — SMS Message Classifier
 -------------------------------------
 Dataset : SMS Spam Collection (~5,500 real SMS messages, labeled spam/ham)
-Model   : Naive Bayes — the classic algorithm for text classification.
-          Used by real email spam filters since the early 2000s.
+Model   : Logistic Regression — fast, interpretable, and strong on text.
 
 What this script does:
   1. Downloads the dataset automatically (no manual steps)
@@ -19,7 +18,6 @@ Run it:
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -109,15 +107,13 @@ print()
 # STEP 3: TRAIN THE MODEL
 # ══════════════════════════════════════════════════════════════════════════
 #
-# Why Naive Bayes for text?
-#   It asks: "Given this word appears in a message, how likely is it spam?"
-#   It multiplies those probabilities across every word in the message.
-#   Fast, simple, and surprisingly accurate on text.
-#
-# "Naive" = it assumes each word is independent of others.
-#   (Not true in reality — but works well enough in practice.)
+# Why Logistic Regression for text?
+#   It learns a weight for every word in the vocabulary.
+#   A message's score is the weighted sum of its TF-IDF values.
+#   If the score crosses a threshold → spam. Simple, fast, and accurate.
 
-model = MultinomialNB()
+from sklearn.linear_model import LogisticRegression
+model = LogisticRegression(max_iter=1000)
 model.fit(X_train_tfidf, y_train)
 
 print("=" * 60)
@@ -167,21 +163,22 @@ print(classification_report(y_test, y_pred, target_names=["Ham", "Spam"]))
 # STEP 5: THE SPAMMIEST WORDS
 # ══════════════════════════════════════════════════════════════════════════
 #
-# Naive Bayes assigns each word a probability of being spam.
-# We can read those probabilities directly — this is explainability.
+# Logistic Regression assigns each word a coefficient — positive means
+# the word pushes the prediction toward spam, negative means ham.
+# Reading these coefficients directly is a form of model explainability.
 
 import numpy as np
 
 feature_names = vectorizer.get_feature_names_out()
-spam_log_probs = model.feature_log_prob_[1]          # log prob of each word given spam
-top_spam_indices = np.argsort(spam_log_probs)[-15:]  # top 15 spammiest words
+spam_coefs     = model.coef_[0]                      # weight of each word for spam
+top_spam_indices = np.argsort(spam_coefs)[-15:]      # top 15 spammiest words
 
 print("=" * 60)
 print("STEP 5: WORDS MOST ASSOCIATED WITH SPAM")
 print("=" * 60)
 for idx in reversed(top_spam_indices):
     word = feature_names[idx]
-    bar  = "█" * int(np.exp(spam_log_probs[idx]) * 400)
+    bar  = "█" * int(spam_coefs[idx] * 10)
     print(f"  {word:<20} {bar}")
 print()
 
@@ -230,4 +227,4 @@ while True:
     label, confidence = predict_message(msg)
     print(f"  → {label}  (confidence: {confidence:.1f}%)")
 
-print("\nDone! Next step: swap MultinomialNB for LogisticRegression and compare.")
+print("\nDone! Next step: try adding bigrams (ngram_range=(1,2)) to the vectorizer and see if accuracy improves.")
