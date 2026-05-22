@@ -7,7 +7,7 @@ Model   : Logistic Regression — fast, interpretable, and strong on text.
 What this script does:
   1. Downloads the dataset automatically (no manual steps)
   2. Converts raw text into numbers the model can understand (TF-IDF)
-  3. Trains a Naive Bayes classifier
+  3. Trains a Logistic Regression classifier
   4. Evaluates it honestly on messages it has never seen
   5. Lets you type your own messages and see predictions in real time
 
@@ -89,6 +89,7 @@ vectorizer = TfidfVectorizer(
     stop_words="english",   # ignore common words like "the", "a", "is"
     lowercase=True,         # treat "FREE" and "free" as the same word
     max_features=5000,      # keep only top 5000 most informative words
+    ngram_range=(1, 2),     # include single words AND two-word phrases
 )
 
 X_train_tfidf = vectorizer.fit_transform(X_train)   # learn vocab + transform
