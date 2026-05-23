@@ -37,7 +37,7 @@ The script will walk through each step with printed output, then drop into an in
 | Step | What Happens |
 |------|-------------|
 | 1 | Dataset is fetched from GitHub and loaded into a DataFrame |
-| 2 | Messages are split into train/test sets, then converted to TF-IDF vectors |
+| 2 | Messages are split into train/test sets, then converted to TF-IDF vectors (unigrams + bigrams) |
 | 3 | A Logistic Regression model is trained on the training set |
 | 4 | The model is evaluated on the unseen test set |
 | 5 | The top 15 words by Logistic Regression coefficient are printed with a visual bar chart |
@@ -47,24 +47,17 @@ The script will walk through each step with printed output, then drop into an in
 
 TF-IDF (Term Frequency–Inverse Document Frequency) weights words by how often they appear in a message relative to how common they are across all messages. This makes spammy words like "FREE" or "WIN" stand out, while common words like "the" or "is" are down-weighted automatically.
 
+The vectorizer is configured with `ngram_range=(1, 2)`, meaning it learns both single words and two-word phrases. This lets the model pick up on patterns like "click here", "win prize", and "call now" that single words alone would miss.
+
 ### Why Logistic Regression?
 
 Fast, interpretable, and effective for text classification. The model's coefficients directly reveal which words push a message toward spam or ham.
 
 ## What's Next
 
-A natural next experiment: add **bigrams** to the vectorizer and see if accuracy improves.
-
-```python
-vectorizer = TfidfVectorizer(
-    stop_words="english",
-    lowercase=True,
-    max_features=5000,
-    ngram_range=(1, 2),   # include two-word phrases like "click here", "win prize"
-)
-```
-
-Bigrams capture phrases that single words miss — "not bad" means something very different from "bad" alone.
+- **Show ham words** — extend Step 5 to also print the 15 most ham-associated coefficients (lowest scores), making the explainability section twice as useful
+- **Feature engineering** — add message length as an extra numeric feature; spam tends to be longer and stacking it alongside TF-IDF is a practical taste of `scipy.sparse.hstack`
+- **Compare models** — swap in `MultinomialNB` and benchmark its accuracy against Logistic Regression on the same split
 
 ## Dataset
 
