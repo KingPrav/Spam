@@ -161,26 +161,38 @@ print(classification_report(y_test, y_pred, target_names=["Ham", "Spam"]))
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# STEP 5: THE SPAMMIEST WORDS
+# STEP 5: MOST SPAMMY AND MOST HAM-LIKE WORDS
 # ══════════════════════════════════════════════════════════════════════════
 #
-# Logistic Regression assigns each word a coefficient — positive means
-# the word pushes the prediction toward spam, negative means ham.
-# Reading these coefficients directly is a form of model explainability.
+# Logistic Regression assigns each word a coefficient:
+#   positive coefficient → word pushes the prediction toward SPAM
+#   negative coefficient → word pushes the prediction toward HAM
+# Reading these directly is a form of model explainability.
 
 import numpy as np
 
-feature_names = vectorizer.get_feature_names_out()
-spam_coefs     = model.coef_[0]                      # weight of each word for spam
-top_spam_indices = np.argsort(spam_coefs)[-15:]      # top 15 spammiest words
+feature_names    = vectorizer.get_feature_names_out()
+spam_coefs       = model.coef_[0]
+
+top_spam_indices = np.argsort(spam_coefs)[-15:]   # highest coefficients → spam
+top_ham_indices  = np.argsort(spam_coefs)[:15]    # lowest coefficients  → ham
 
 print("=" * 60)
-print("STEP 5: WORDS MOST ASSOCIATED WITH SPAM")
+print("STEP 5A: WORDS MOST ASSOCIATED WITH SPAM")
 print("=" * 60)
 for idx in reversed(top_spam_indices):
     word = feature_names[idx]
     bar  = "█" * int(spam_coefs[idx] * 10)
-    print(f"  {word:<20} {bar}")
+    print(f"  {word:<25} {bar}")
+print()
+
+print("=" * 60)
+print("STEP 5B: WORDS MOST ASSOCIATED WITH HAM")
+print("=" * 60)
+for idx in top_ham_indices:
+    word = feature_names[idx]
+    bar  = "█" * int(abs(spam_coefs[idx]) * 10)
+    print(f"  {word:<25} {bar}")
 print()
 
 
