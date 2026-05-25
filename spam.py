@@ -16,8 +16,11 @@ Run it:
 """
 
 import pandas as pd
+import numpy as np
+import scipy.sparse
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -46,9 +49,15 @@ url = (
 
 df = pd.read_csv(url, sep="\t", header=None, names=["label", "message"])
 
+df["length"] = df["message"].str.len()
+
 print(f"Total messages : {len(df)}")
 print(f"Spam messages  : {(df['label'] == 'spam').sum()}")
 print(f"Ham messages   : {(df['label'] == 'ham').sum()}")
+print()
+print("Average message length:")
+print(f"  Spam : {df[df['label'] == 'spam']['length'].mean():.0f} characters")
+print(f"  Ham  : {df[df['label'] == 'ham']['length'].mean():.0f} characters")
 print()
 print("Sample messages:")
 print(df.sample(5, random_state=1).to_string(index=False))
@@ -95,12 +104,30 @@ vectorizer = TfidfVectorizer(
 X_train_tfidf = vectorizer.fit_transform(X_train)   # learn vocab + transform
 X_test_tfidf  = vectorizer.transform(X_test)        # ONLY transform (no learning)
 
+# ── Length feature ────────────────────────────────────────────────────────
+# Character count is a strong spam signal — spam averages ~160 chars vs ~70
+# for ham. We scale it to the same range as TF-IDF values, then stack it as
+# one extra column alongside the 5,000 TF-IDF columns.
+len_train = X_train.str.len().values.reshape(-1, 1)
+len_test  = X_test.str.len().values.reshape(-1, 1)
+
+scaler = StandardScaler()
+len_train_scaled = scaler.fit_transform(len_train)  # learn mean/std on train only
+len_test_scaled  = scaler.transform(len_test)
+
+X_train_combined = scipy.sparse.hstack(
+    [X_train_tfidf, scipy.sparse.csr_matrix(len_train_scaled)]
+)
+X_test_combined = scipy.sparse.hstack(
+    [X_test_tfidf, scipy.sparse.csr_matrix(len_test_scaled)]
+)
+
 print("=" * 60)
 print("STEP 2: TEXT CONVERTED TO NUMBERS")
 print("=" * 60)
 print(f"Vocabulary size     : {len(vectorizer.vocabulary_)} unique words")
-print(f"Training matrix     : {X_train_tfidf.shape}  (messages × words)")
-print(f"Each message is now a row of {X_train_tfidf.shape[1]} numbers")
+print(f"TF-IDF matrix       : {X_train_tfidf.shape}  (messages × words)")
+print(f"Combined matrix     : {X_train_combined.shape}  (TF-IDF + 1 length column)")
 print()
 
 
@@ -115,7 +142,7 @@ print()
 
 from sklearn.linear_model import LogisticRegression
 model = LogisticRegression(max_iter=1000)
-model.fit(X_train_tfidf, y_train)
+model.fit(X_train_combined, y_train)
 
 print("=" * 60)
 print("STEP 3: MODEL TRAINED ✓")
@@ -128,7 +155,7 @@ print()
 # STEP 4: EVALUATE — HOW GOOD IS IT?
 # ══════════════════════════════════════════════════════════════════════════
 
-y_pred = model.predict(X_test_tfidf)
+y_pred = model.predict(X_test_combined)
 accuracy = accuracy_score(y_test, y_pred)
 cm = confusion_matrix(y_test, y_pred)
 
@@ -169,8 +196,6 @@ print(classification_report(y_test, y_pred, target_names=["Ham", "Spam"]))
 #   negative coefficient → word pushes the prediction toward HAM
 # Reading these directly is a form of model explainability.
 
-import numpy as np
-
 feature_names    = vectorizer.get_feature_names_out()
 spam_coefs       = model.coef_[0]
 
@@ -201,11 +226,13 @@ print()
 # ══════════════════════════════════════════════════════════════════════════
 
 def predict_message(text):
-    """Convert a message to TF-IDF and predict spam or ham."""
-    vec  = vectorizer.transform([text])
-    pred = model.predict(vec)[0]
-    prob = model.predict_proba(vec)[0]
-    label = "🚨 SPAM" if pred == 1 else "✅ HAM (not spam)"
+    """Convert a message to TF-IDF + length features and predict spam or ham."""
+    tfidf   = vectorizer.transform([text])
+    length  = scaler.transform([[len(text)]])
+    vec     = scipy.sparse.hstack([tfidf, scipy.sparse.csr_matrix(length)])
+    pred    = model.predict(vec)[0]
+    prob    = model.predict_proba(vec)[0]
+    label   = "🚨 SPAM" if pred == 1 else "✅ HAM (not spam)"
     confidence = prob[pred] * 100
     return label, confidence
 
@@ -240,4 +267,4 @@ while True:
     label, confidence = predict_message(msg)
     print(f"  → {label}  (confidence: {confidence:.1f}%)")
 
-print("\nDone! Next step: try adding bigrams (ngram_range=(1,2)) to the vectorizer and see if accuracy improves.")
+print("\nDone! Next step: add MultinomialNB and compare its accuracy against Logistic Regression.")
